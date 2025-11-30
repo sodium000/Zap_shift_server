@@ -42,9 +42,9 @@ async function run() {
         query.senderEmail = email;
       }
 
-      const options = { sort: { createdAt: -1 } };
+      const options = {sort:{createdAt: -1}}
 
-      const cursor = parcelsCollection.find(query, options);
+      const cursor = parcelsCollection.find(query,options);
       const result = await cursor.toArray();
       res.send(result);
     });
@@ -53,18 +53,19 @@ async function run() {
       const parcelsData = req.body;
       // parcels created time
       parcelsData.createdAt = new Date();
-
-      app.delete("/parcels/:id", async (req, res) => {
-        const id = req.params.id;
-        const query = { _id: new ObjectId(id) };
-
-        const result = await parcelsCollection.deleteOne(query);
-        res.send(result);
-      });
-
       const result = await parcelsCollection.insertOne(parcelsData);
       res.status(200).send({ Message: "data added", result });
     });
+
+        app.delete('/parcels/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+
+            const result = await parcelsCollection.deleteOne(query);
+            res.send(result);
+        })
+
+
   } finally {
   }
 }
