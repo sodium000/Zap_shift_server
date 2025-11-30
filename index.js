@@ -1,15 +1,13 @@
-const express = require('express')
-const cors = require('cors')
-const { MongoClient, ServerApiVersion } = require('mongodb')
-const app = express()
-require('dotenv').config()
-const port = 3000
+const express = require("express");
+const cors = require("cors");
+const { MongoClient, ServerApiVersion } = require("mongodb");
+const app = express();
+require("dotenv").config();
+const port = 3000;
 
 // middleware added
 app.use(express.json());
-app.use(cors  ());
-
-
+app.use(cors());
 
 // mongoDb connection
 
@@ -20,7 +18,7 @@ const client = new MongoClient(uri, {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 });
 async function run() {
   try {
@@ -28,35 +26,41 @@ async function run() {
     await client.connect();
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!"
+    );
 
-    
     const DB = client.db("zap_Shift");
     const parcelsCollection = DB.collection("parcelsCollection");
 
+    // parcels api
+    app.get("/parcels", async (req, res) => {
+      const query = {};
+      const { email } = req.query;
+      // /parcels?email=''&
+      if (email) {
+        query.senderEmail = email;
+      }
 
-    // parcels api 
-    app.get('/parcels', async(req,res)=>{
+      const cursor = parcelsCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
 
-    })
-
-    app.post('/parcels',async(req,res)=>{
+    app.post("/parcels", async (req, res) => {
       const parcelsData = req.body;
       const result = await parcelsCollection.insertOne(parcelsData);
-      res.status(200).send({Message:"data added", result})
-
-    })
+      res.status(200).send({ Message: "data added", result });
+    });
   } finally {
   }
 }
-run()
+run();
 
-
-
-app.get('/', (req, res) => {
-  res.send('Zap_shift server')
-})
+app.get("/", (req, res) => {
+  res.send("Zap_shift server");
+});
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
-})  
+  console.log(`Example app listening on port ${port}`);
+});
