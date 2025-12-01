@@ -1,9 +1,13 @@
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 require("dotenv").config();
 const port = 3000;
+
+// payment 
+const stripe = require('stripe')(process.env.STEIPE_SECRET);
+
 
 // middleware added
 app.use(express.json());
@@ -49,6 +53,14 @@ async function run() {
       res.send(result);
     });
 
+
+       app.get('/parcels/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await parcelsCollection.findOne(query);
+            res.send(result);
+        })
+
     app.post("/parcels", async (req, res) => {
       const parcelsData = req.body;
       // parcels created time
@@ -57,12 +69,42 @@ async function run() {
       res.status(200).send({ Message: "data added", result });
     });
 
+
         app.delete('/parcels/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
 
             const result = await parcelsCollection.deleteOne(query);
             res.send(result);
+        })
+
+              // payment related apis
+        app.post('/payment-checkout-session', async (req, res) => {
+            const paymentInfo = req.body;
+            const amount = parseInt(paymentInfo.cost) * 100;
+            const session = await stripe.checkout.sessions.create({
+                line_items: [
+                    {
+                        price_data: {
+                            currency: 'usd',
+                            unit_amount: amount,
+                            product_data: {
+                                name: `Please pay for: ${paymentInfo.parcelName}`
+                            }
+                        },
+                        quantity: 1,
+                    },
+                ],
+                mode: 'payment',
+                metadata: {
+                    parcelId: paymentInfo.parcelId
+                },
+                customer_email: paymentInfo.senderEmail,
+                success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+                cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
+            })
+
+            res.send({ url: session.url })
         })
 
 
