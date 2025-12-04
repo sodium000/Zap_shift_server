@@ -7,6 +7,15 @@ const port = 3000;
 const stripe = require("stripe")(process.env.STEIPE_SECRET);
 const crypto = require("crypto");
 
+// firbase token auth
+const admin = require("firebase-admin");
+
+const serviceAccount = require("./zapShiftdecodetoken.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
 // crypto genaretot
 function generateTrackingId() {
   const prefix = "PRCL"; // your brand prefix
@@ -22,8 +31,25 @@ function generateTrackingId() {
 app.use(express.json());
 app.use(cors());
 
-// mongoDb connection
+const verifyFBToken = async (req, res, next) => {
+  const token = req.headers.authorization;
 
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+
+  try {
+    const idToken = token.split(" ")[1];
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    console.log("decoded in the token", decoded);
+    req.decoded_email = decoded.email;
+    next();
+  } catch (err) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+};
+
+// mongoDb connection
 const uri = `mongodb+srv://${process.env.db_username}:${process.env.db_password}@chat-application.qhq6ecs.mongodb.net/?appName=chat-application`;
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -129,7 +155,7 @@ async function run() {
         return res.send({
           message: "already exists",
           transactionId,
-          trackingId : PaymentExt.trackingId
+          trackingId: PaymentExt.trackingId,
         });
       }
 
@@ -172,6 +198,25 @@ async function run() {
       }
 
       res.send({ success: false });
+    });
+
+    // get payment info
+
+    app.get("/payments", verifyFBToken, async (req, res) => {
+      const Email = req.query.email;
+      const query = {};
+
+      if (Email) {
+        query.customerEmail = Email;
+        // check email address
+        if (Email !== req.decoded_email) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+      }
+
+      const cursor = paymentCollection.find(query).sort({paidAt: -1});
+      const result = await cursor.toArray();
+      res.send(result);
     });
   } finally {
   }
