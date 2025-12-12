@@ -116,7 +116,6 @@ async function run() {
       const cursor = userCollection
         .find(query)
         .sort({ createdAt: -1 })
-        .limit(5);
       const result = await cursor.toArray();
       res.send(result);
     });
@@ -257,6 +256,7 @@ async function run() {
         const update = {
           $set: {
             paymentStatus: "paid",
+            deliveryStatus: 'pending-pickup',
             trackingId: trackingId,
           },
         };
@@ -311,10 +311,17 @@ async function run() {
 
     // riders related apis
     app.get("/riders", async (req, res) => {
+      const { status, district, workStatus } = req.query;
       const query = {};
-      if (req.query.status) {
-        query.status = req.query.status;
-      }
+          if (status) {
+                query.status = status;
+            }
+            if (district) {
+                query.district = district
+            }
+            if (workStatus) {
+                query.workStatus = workStatus
+            }
       const cursor = ridersCollection.find(query);
       const result = await cursor.toArray();
       res.send(result);
@@ -329,34 +336,32 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/riders/:id", verifyFBToken, async (req, res) => {
-      const status = req.body.status;
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const updatedDoc = {
-        $set: {
-          status: status,
-        },
-      };
+        app.patch('/riders/:id', verifyFBToken, verifyAdmin, async (req, res) => {
+            const status = req.body.status;
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const updatedDoc = {
+                $set: {
+                    status: status,
+                    workStatus: 'available'
+                }
+            }
 
-      const result = await ridersCollection.updateOne(query, updatedDoc);
+            const result = await ridersCollection.updateOne(query, updatedDoc);
 
-      if (status === "approved") {
-        const email = req.body.email;
-        const userQuery = { email };
-        const updateUser = {
-          $set: {
-            role: "rider",
-          },
-        };
-        const userResult = await userCollection.updateOne(
-          userQuery,
-          updateUser
-        );
-      }
+            if (status === 'approved') {
+                const email = req.body.email;
+                const userQuery = { email }
+                const updateUser = {
+                    $set: {
+                        role: 'rider'
+                    }
+                }
+                const userResult = await userCollection.updateOne(userQuery, updateUser);
+            }
 
-      res.send(result);
-    });
+            res.send(result);
+        })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
@@ -369,7 +374,7 @@ async function run() {
 run();
 
 app.get("/", (req, res) => {
-  res.send("Zap_shift server");
+  res.send("Zap_shift server gfsdfg");
 });
 
 app.listen(port, () => {
